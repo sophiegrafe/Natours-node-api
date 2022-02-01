@@ -3,69 +3,93 @@
 /* eslint-disable prefer-object-spread */
 const Tour = require('../models/tourModel');
 
+class APIFeatures {
+  constructor(query, queryString) {
+    this.query = query;
+    this.queryString = queryString;
+  }
+
+  filter() {
+    const queryObj = { ...this.queryString };
+    const excludedFields = [
+      'page',
+      'sort',
+      'limit',
+      'fields',
+    ];
+    excludedFields.forEach(
+      (field) => delete queryObj[field]
+    );
+
+    let queryStr = JSON.stringify(queryObj);
+    queryStr = queryStr.replace(
+      /\b(gte|gt|lte|lt)\b/g,
+      (match) => `$${match}`
+    );
+
+    this.query = this.query.find(
+      JSON.parse(queryStr)
+    );
+
+    return this;
+  }
+
+  sort() {
+    if (this.queryString.sort) {
+      const sortBy = this.queryString.sort
+        .split(',')
+        .join(' ');
+      this.query = this.query.sort(sortBy);
+    } else {
+      this.query = this.query.sort(
+        '-createdAt name'
+      );
+    }
+
+    return this;
+  }
+
+  project() {
+    if (this.queryString.fields) {
+      const fields = this.queryString.fields
+        .split(',')
+        .join(' ');
+      this.query = this.query.select(fields);
+    } else {
+      this.query = this.query.select('-__v');
+    }
+
+    return this;
+  }
+
+  paginate() {
+    const page = +this.queryString.page || 1;
+    const limit = +this.queryString.limit || 1;
+    const skip = (page - 1) * limit;
+
+    this.query = this.query
+      .skip(skip)
+      .limit(limit);
+
+    return this;
+  }
+}
+
 //route handlers
 module.exports = {
-  aliasTopTours(req, res, next) {
-    req.query.limit = '5';
-    req.query.sort = '-ratingsAverage,price';
-    req.query.fields =
-      'name,price,ratingsAverage,summary,difficulty';
-    next();
-  },
-
   async getAllTours(req, res) {
     try {
-      // Build the query
-      // 1a. Filtering
-      const {
-        page,
-        sort,
-        limit,
-        fields,
-        ...queryObj
-      } = req.query;
-
-      // 1b. Advanced filtering
-      let queryStr = JSON.stringify(queryObj);
-      queryStr = queryStr.replace(
-        /\b(gte|gt|lte|lt)\b/g,
-        (match) => `$${match}`
-      );
-      let query = Tour.find(JSON.parse(queryStr));
-
-      // 2. Sorting the data
-      if (sort) {
-        const sortBy = sort.split(',').join(' ');
-        query = query.sort(sortBy);
-      } else {
-        query = query.sort('-createdAt name');
-      }
-
-      // 3. Limiting the field
-      if (fields) {
-        const selectedFields = fields
-          .split(',')
-          .join(' ');
-        query = query.select(selectedFields);
-      }
-
-      // 4. Pagination
-      const pageNum = +page || 1;
-      const limitNum = +limit || 1;
-      const skip = (pageNum - 1) * limitNum;
-
-      query = query.skip(skip).limit(limitNum);
-      if (page) {
-        const numTours =
-          await Tour.countDocuments();
-        if (skip >= numTours)
-          throw new Error(
-            'There is no result left for this page'
-          );
-      }
-
       // Execute the query
-      const tours = await query;
+      const features = new APIFeatures(
+        Tour.find(),
+        req.query
+      )
+        .filter()
+        .sort()
+        .project()
+        .paginate();
+
+      const tours = await features.query;
 
       // Send the response
       res.status(200).json({
@@ -78,7 +102,7 @@ module.exports = {
     } catch (err) {
       res.status(404).json({
         status: 'fail',
-        message: err,
+        message: err.message,
       });
     }
   },
@@ -160,5 +184,12 @@ module.exports = {
         message: err,
       });
     }
+  },
+  aliasTop5Tours(req, res, next) {
+    req.query.limit = '5';
+    req.query.sort = '-ratingsAverage,price';
+    req.query.fields =
+      'name,price,ratingsAverage,summary,difficulty';
+    next();
   },
 };
