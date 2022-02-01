@@ -25,12 +25,20 @@ module.exports = {
       );
       let query = Tour.find(JSON.parse(queryStr));
 
-      // 2. Sorting
+      // 2. Sorting the data
       if (sort) {
         const sortBy = sort.split(',').join(' ');
         query = query.sort(sortBy);
       } else {
         query = query.sort('-createdAt');
+      }
+
+      // 3. Limiting the field
+      if (fields) {
+        const selectedFields = fields
+          .split(',')
+          .join(' ');
+        query = query.select(selectedFields);
       }
 
       // Execute the query
