@@ -30,7 +30,7 @@ module.exports = {
         const sortBy = sort.split(',').join(' ');
         query = query.sort(sortBy);
       } else {
-        query = query.sort('-createdAt');
+        query = query.sort('-createdAt name');
       }
 
       // 3. Limiting the field
@@ -39,6 +39,21 @@ module.exports = {
           .split(',')
           .join(' ');
         query = query.select(selectedFields);
+      }
+
+      // 4. Pagination
+      const pageNum = +page || 1;
+      const limitNum = +limit || 1;
+      const skip = (pageNum - 1) * limitNum;
+
+      query = query.skip(skip).limit(limitNum);
+      if (page) {
+        const numTours =
+          await Tour.countDocuments();
+        if (skip >= numTours)
+          throw new Error(
+            'There is no result left for this page'
+          );
       }
 
       // Execute the query
