@@ -8,16 +8,26 @@ module.exports = {
   async getAllTours(req, res) {
     try {
       // Build the query
+      // 1. Filtering
       const {
         page,
         sort,
         limit,
         fields,
         ...queryObj
-      } = req.query;
+      } = { ...req.query };
 
-      const query = Tour.find(queryObj);
+      // 2. Advanced filtering
+      let queryStr = JSON.stringify(queryObj);
+      queryStr = queryStr.replace(
+        /\b(gte|gt|lte|lt)\b/g,
+        (match) => `$${match}`
+      );
+      const query = Tour.find(
+        JSON.parse(queryStr)
+      );
 
+      console.log(JSON.parse(queryStr));
       // Execute the query
       const tours = await query;
 
