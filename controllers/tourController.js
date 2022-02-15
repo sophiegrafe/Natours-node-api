@@ -32,7 +32,7 @@ module.exports = {
         status: 'success',
         results: tours.length,
         data: {
-          tours: tours,
+          tours,
         },
       });
     } catch (err) {
