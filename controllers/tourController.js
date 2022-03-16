@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-/* eslint-disable node/no-unsupported-features/es-syntax */
 /* eslint-disable prefer-object-spread */
 const Tour = require('../models/tourModel');
 const APIFeatures = require('../utils/apiFeatures');
