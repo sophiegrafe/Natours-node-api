@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 8,
+    select: false,
   },
   passwordConfirm: {
     type: String,
@@ -36,8 +37,10 @@ const userSchema = new mongoose.Schema({
       validator: function (el) {
         return el === this.password;
       },
+      message: "Passwords don't match",
     },
   },
+  passwordChangedAt: Date,
 });
 
 userSchema.pre('save', async function (next) {
@@ -50,6 +53,26 @@ userSchema.pre('save', async function (next) {
 
   next();
 });
+
+userSchema.methods.checkPassword =
+  async function (givenPassword, userPassword) {
+    return await argon2.verify(
+      givenPassword,
+      userPassword
+    );
+  };
+
+userSchema.methods.changedPasswordAfter =
+  function (JWTTimestamp) {
+    if (this.passwordChangedAt) {
+      const changedTimestamp = parseInt(
+        this.passwordChangedAt.getTime() / 1000,
+        10
+      );
+      return JWTTimestamp < changedTimestamp;
+    }
+    return false;
+  };
 
 const User = mongoose.model('User', userSchema);
 
